@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Community Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-md">
+            <div class="container mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">Virtual Community Manager</h1>
+                    <p class="text-sm opacity-80">Voice-enabled community support and engagement</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="refresh-data" class="refresh-btn p-2 rounded-full hover:bg-blue-500 transition-colors" 
+                            title="Refresh data">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto p-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-2">Open Tickets</h3>
+                    <p id="open-tickets-count" class="text-3xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-2">Upcoming Events</h3>
+                    <p id="upcoming-events-count" class="text-3xl font-bold text-green-600">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-2">Avg. Event Rating</h3>
+                    <p id="avg-rating" class="text-3xl font-bold text-yellow-600">-</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Recent Tickets</h3>
+                        <button onclick="showCreateTicketModal()" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            New Ticket
+                        </button>
+                    </div>
+                    <div id="recent-tickets" class="space-y-2 max-h-96 overflow-y-auto pr-2">
+                        <div class="animate-pulse space-y-2">
+                            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                            <div class="h-3 bg-gray-100 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Upcoming Events</h3>
+                        <button onclick="showCreateEventModal()" class="text-sm text-green-600 hover:text-green-800 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            New Event
+                        </button>
+                    </div>
+                    <div id="upcoming-events" class="space-y-2 max-h-96 overflow-y-auto pr-2">
+                        <div class="animate-pulse space-y-2">
+                            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                            <div class="h-3 bg-gray-100 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add voice interface script -->
+    <script src="/static/js/voice-interface.js"></script>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        
+        // Global variable to store the voice interface instance
+        let voiceInterface;
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                // Show loading state
+                document.getElementById('recent-tickets').innerHTML = '<p class="text-gray-500">Loading tickets...</p>';
+                document.getElementById('upcoming-events').innerHTML = '<p class="text-gray-500">Loading events...</p>';
+                
+                // Load tickets
+                const ticketsResponse = await fetch(`${API_BASE_URL}/tickets/`);
+                const tickets = await ticketsResponse.json();
+                
+                // Update open tickets count
+                const openTickets = tickets.filter(t => t.status !== 'Resolved').length;
+                document.getElementById('open-tickets-count').textContent = openTickets;
+                
+                // Display recent tickets
+                const recentTickets = tickets.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+                const ticketsHtml = recentTickets.map(ticket => `
+                    <div class="border-b pb-2 mb-2">
+                        <div class="font-medium flex justify-between">
+                            <span>${ticket.title}</span>
+                            <span class="text-xs px-2 py-1 rounded-full ${
+                                ticket.priority === 'P1' ? 'bg-red-100 text-red-800' :
+                                ticket.priority === 'P2' ? 'bg-orange-100 text-orange-800' :
+                                ticket.priority === 'P3' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-blue-100 text-blue-800'
+                            }">
+                                ${ticket.priority}
+                            </span>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <span class="inline-block w-24">${ticket.status}</span>
+                            <span>Created: ${new Date(ticket.created_at).toLocaleDateString()}</span>
+                        </div>
+                        ${ticket.location ? `<div class="text-xs text-gray-400">Location: ${ticket.location}</div>` : ''}
+                    </div>
+                `).join('');
+                document.getElementById('recent-tickets').innerHTML = ticketsHtml || '<p class="text-gray-500">No recent tickets found</p>';
+                
+                // Load events
+                const eventsResponse = await fetch(`${API_BASE_URL}/events/`);
+                const events = await eventsResponse.json();
+                
+                // Update upcoming events count
+                const upcomingEvents = events
+                    .filter(e => new Date(e.datetime) > new Date())
+                    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+                    
+                document.getElementById('upcoming-events-count').textContent = upcomingEvents.length;
+                
+                // Calculate average rating
+                const feedbackResponse = await fetch(`${API_BASE_URL}/feedback/`);
+                const feedbacks = await feedbackResponse.json();
+                
+                if (feedbacks.length > 0) {
+                    const avgRating = (feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length).toFixed(1);
+                    document.getElementById('avg-rating').textContent = `${avgRating}/5`;
+                } else {
+                    document.getElementById('avg-rating').textContent = 'N/A';
+                }
+                
+                // Display upcoming events
+                const eventsHtml = upcomingEvents.slice(0, 5).map(event => {
+                    const eventDate = new Date(event.datetime);
+                    const now = new Date();
+                    const timeDiff = eventDate - now;
+                    const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                    
+                    return `
+                        <div class="border-b pb-2 mb-2">
+                            <div class="font-medium">${event.title}</div>
+                            <div class="text-sm text-gray-500">
+                                ${eventDate.toLocaleString()}
+                                <span class="text-xs ml-2 px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                                    ${daysDiff} ${daysDiff === 1 ? 'day' : 'days'} away
+                                </span>
+                            </div>
+                            ${event.location ? `<div class="text-xs text-gray-400">Location: ${event.location}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('upcoming-events').innerHTML = 
+                    upcomingEvents.length > 0 ? eventsHtml : '<p class="text-gray-500">No upcoming events scheduled</p>';
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                document.getElementById('recent-tickets').innerHTML = 
+                    '<p class="text-red-500">Error loading tickets. Please try again.</p>';
+                document.getElementById('upcoming-events').innerHTML = 
+                    '<p class="text-red-500">Error loading events. Please try again.</p>';
+            }
+        }
+        
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboardData();
+            
+            // Set up auto-refresh every 30 seconds
+            setInterval(loadDashboardData, 30000);
+            
+            // Add event listeners for manual refresh buttons
+            document.querySelectorAll('.refresh-btn').forEach(btn => {
+                btn.addEventListener('click', loadDashboardData);
+            });
+        });
+    </script>
+</body>
+</html>
