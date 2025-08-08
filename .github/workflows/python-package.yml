@@ -43,11 +43,12 @@ jobs:
       run: |
         PYTHONPATH=$PYTHONPATH:. pytest tests/ -v --cov=./ --cov-report=xml
     
+    # Code coverage upload (optional - requires CODECOV_TOKEN in repository secrets)
     - name: Upload coverage to Codecov
+      if: success() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository_owner == 'Devansh810204'
       uses: codecov/codecov-action@v3
-      if: success()
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ secrets.CODECOV_TOKEN || '' }}
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
